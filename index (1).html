@@ -1,0 +1,147 @@
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      margin: 0;
+      background-color: #121212;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+
+    .controls {
+      margin-bottom: 10px;
+    }
+
+    .controls button {
+      padding: 8px 16px;
+      margin: 0 5px;
+      background-color: #1e1e1e;
+      border: 1px solid #444;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .controls button:hover {
+      background-color: #333;
+    }
+
+    canvas {
+      border: 1px solid #444;
+      background-color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <button id="undoBtn">↩️ Quay lại</button>
+    <button id="clearBtn">🗑️ Xóa hết</button>
+  </div>
+
+  <canvas id="whiteboard" width="300" height="300"></canvas>
+
+  <script>
+    const canvas = document.getElementById('whiteboard');
+    const ctx = canvas.getContext('2d');
+
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+    let drawingHistory = [];
+    let currentStroke = [];
+
+    // Cài đặt bút vẽ
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawingHistory.forEach(stroke => {
+        ctx.beginPath();
+        stroke.forEach((point, i) => {
+          if (i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.stroke();
+      });
+    }
+
+    function save() {
+      localStorage.setItem('hanzi-drawing', JSON.stringify(drawingHistory));
+    }
+
+    function load() {
+      const data = localStorage.getItem('hanzi-drawing');
+      if (data) {
+        drawingHistory = JSON.parse(data);
+        redraw();
+      }
+    }
+
+    function start(e) {
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.offsetX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.offsetY) - rect.top;
+      currentStroke = [{ x, y }];
+      lastX = x; lastY = y;
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.offsetX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.offsetY) - rect.top;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      currentStroke.push({ x, y });
+      lastX = x; lastY = y;
+    }
+
+    function stop() {
+      if (isDrawing && currentStroke.length > 0) {
+        drawingHistory.push(currentStroke);
+        save();
+      }
+      isDrawing = false;
+    }
+
+    document.getElementById('undoBtn').onclick = () => {
+      drawingHistory.pop();
+      redraw();
+      save();
+    };
+
+    document.getElementById('clearBtn').onclick = () => {
+      drawingHistory = [];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      localStorage.removeItem('hanzi-drawing');
+    };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stop);
+    canvas.addEventListener('mouseout', stop);
+    canvas.addEventListener('touchstart', start);
+    canvas.addEventListener('touchmove', draw);
+    canvas.addEventListener('touchend', stop);
+    canvas.addEventListener('touchcancel', stop);
+
+    // Load dữ liệu vẽ trước đó
+    load();
+  </script>
+</body>
+</html>
